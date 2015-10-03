@@ -32,22 +32,22 @@ public class RestClientTest {
 
     @BeforeClass
     public static void startServer() throws IOException {
-    	server = HttpServer.create(new InetSocketAddress(0), 0);
-    	server.start();
+        server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.start();
     }
 
     @AfterClass
     public static void stopServer() throws IOException {
-    	server.stop(0);
+        server.stop(0);
     }
 
     private MetricRegistry metrics = new MetricRegistry();
 
-	private RestClient restClient = new RestClient("TestEndpoint", "http://localhost:" + server.getAddress().getPort(), metrics);
+    private RestClient restClient = new RestClient("TestEndpoint", "http://localhost:" + server.getAddress().getPort(), metrics);
 
-	@Test
+    @Test
     public void shouldGetString() throws Exception {
-		HttpContext context = server.createContext("/test", (exchange) -> {
+        HttpContext context = server.createContext("/test", (exchange) -> {
             exchange.sendResponseHeaders(200, 0);
             IOUtil.copy("This is a test", exchange.getResponseBody());
         });
@@ -55,97 +55,97 @@ public class RestClientTest {
         assertThat(restClient.getString(context.getPath())).isEqualTo("This is a test");
     }
 
-	@Test
-	public void shouldLogResult() throws Exception {
-		Logger logger = (Logger) LoggerFactory.getLogger(RestClient.class);
-		CyclicBufferAppender<ILoggingEvent> appender = new CyclicBufferAppender<>();
-		appender.start();
-		logger.addAppender(appender);
+    @Test
+    public void shouldLogResult() throws Exception {
+        Logger logger = (Logger) LoggerFactory.getLogger(RestClient.class);
+        CyclicBufferAppender<ILoggingEvent> appender = new CyclicBufferAppender<>();
+        appender.start();
+        logger.addAppender(appender);
 
-		restClient.setPayloadLogLength(12);
+        restClient.setPayloadLogLength(12);
 
-		HttpContext context = server.createContext("/logging", (exchange) -> {
+        HttpContext context = server.createContext("/logging", (exchange) -> {
             exchange.sendResponseHeaders(206, 0);
             IOUtil.copy("Message with truncated part", exchange.getResponseBody());
         });
 
-		restClient.getString(context.getPath());
+        restClient.getString(context.getPath());
 
         assertThat(appender.getLength()).isEqualTo(1);
         ILoggingEvent loggingEvent = appender.get(0);
         assertThat(loggingEvent.getLevel()).isEqualTo(Level.DEBUG);
         assertThat(loggingEvent.getLoggerName())
-        	.contains("TestEndpoint");
+            .contains("TestEndpoint");
         assertThat(loggingEvent.getFormattedMessage())
-        	.contains(restClient.getUrl())
-        	.contains(context.getPath())
-        	.contains("206")
-        	.contains("Message with")
-        	.doesNotContain("truncated part");
-	}
+            .contains(restClient.getUrl())
+            .contains(context.getPath())
+            .contains("206")
+            .contains("Message with")
+            .doesNotContain("truncated part");
+    }
 
-	@Test
-	public void shouldLogEmptyResult() throws Exception {
-		Logger logger = (Logger) LoggerFactory.getLogger(RestClient.class);
-		CyclicBufferAppender<ILoggingEvent> appender = new CyclicBufferAppender<>();
-		appender.start();
-		logger.addAppender(appender);
+    @Test
+    public void shouldLogEmptyResult() throws Exception {
+        Logger logger = (Logger) LoggerFactory.getLogger(RestClient.class);
+        CyclicBufferAppender<ILoggingEvent> appender = new CyclicBufferAppender<>();
+        appender.start();
+        logger.addAppender(appender);
 
-		HttpContext context = server.createContext("/loggingEmpty", (exchange) -> {
-			exchange.sendResponseHeaders(204, -1);
-		});
+        HttpContext context = server.createContext("/loggingEmpty", (exchange) -> {
+            exchange.sendResponseHeaders(204, -1);
+        });
 
-		restClient.get(context.getPath(), JsonParser::parseToObject);
+        restClient.get(context.getPath(), JsonParser::parseToObject);
 
-		assertThat(appender.getLength()).isEqualTo(1);
-		ILoggingEvent loggingEvent = appender.get(0);
-		assertThat(loggingEvent.getLevel()).isEqualTo(Level.DEBUG);
-		assertThat(loggingEvent.getFormattedMessage())
-			.contains(restClient.getUrl())
-			.contains("204")
-			.contains(context.getPath());
-	}
+        assertThat(appender.getLength()).isEqualTo(1);
+        ILoggingEvent loggingEvent = appender.get(0);
+        assertThat(loggingEvent.getLevel()).isEqualTo(Level.DEBUG);
+        assertThat(loggingEvent.getFormattedMessage())
+            .contains(restClient.getUrl())
+            .contains("204")
+            .contains(context.getPath());
+    }
 
-	@Test
-	public void shouldGetJSON() throws Exception {
-		HttpContext context = server.createContext("/testJSON", (exchange) -> {
+    @Test
+    public void shouldGetJSON() throws Exception {
+        HttpContext context = server.createContext("/testJSON", (exchange) -> {
             exchange.sendResponseHeaders(200, 0);
             IOUtil.copy("{\"foo\":1,\"bar\":2}", exchange.getResponseBody());
         });
-		restClient.setHeader("Accept", "application/json");
+        restClient.setHeader("Accept", "application/json");
         JsonObject obj = restClient.get(context.getPath(), JsonParser::parseToObject).get();
         assertThat(obj.longValue("foo").get()).isEqualTo(1);
-	}
+    }
 
-	@Test
-	public void shouldHandleParseException() throws Exception {
-		HttpContext context = server.createContext("/parseError", (exchange) -> {
+    @Test
+    public void shouldHandleParseException() throws Exception {
+        HttpContext context = server.createContext("/parseError", (exchange) -> {
             exchange.sendResponseHeaders(200, 0);
             IOUtil.copy("test", exchange.getResponseBody());
         });
         RestException e = (RestException) catchThrowable(
-        		() -> restClient.get(context.getPath(), (reader) -> {
-					throw new IllegalArgumentException("Something failed");
-				}).get());
+                () -> restClient.get(context.getPath(), (reader) -> {
+                    throw new IllegalArgumentException("Something failed");
+                }).get());
         assertThat(e.getUrl()).isEqualTo(restClient.getUrl() + context.getPath());
         assertThat(e)
-        	.hasMessage("java.lang.IllegalArgumentException: Something failed")
-        	.hasCauseInstanceOf(IllegalArgumentException.class);
-	}
+            .hasMessage("java.lang.IllegalArgumentException: Something failed")
+            .hasCauseInstanceOf(IllegalArgumentException.class);
+    }
 
     @Test
-	public void shouldGetStringWithDifferentEncoding() throws Exception {
+    public void shouldGetStringWithDifferentEncoding() throws Exception {
         HttpContext context = server.createContext("/test2", (exchange) -> {
-        	Charset charset = StandardCharsets.ISO_8859_1;
-        	exchange.getResponseHeaders().set("Content-Type", "text/plain; charset=" + charset.name());
+            Charset charset = StandardCharsets.ISO_8859_1;
+            exchange.getResponseHeaders().set("Content-Type", "text/plain; charset=" + charset.name());
             exchange.sendResponseHeaders(200, 0);
             IOUtil.copy("זרו", exchange.getResponseBody(), charset);
         });
 
         assertThat(restClient.getString(context.getPath())).isEqualTo("זרו");
-	}
+    }
 
-	@Test
+    @Test
     public void shouldGetEmptyString() throws Exception {
         HttpContext context = server.createContext("/shouldGetEmptyString", (exchange) -> {
             exchange.sendResponseHeaders(204, -1);
@@ -155,105 +155,105 @@ public class RestClientTest {
     }
 
     @Test
-	public void shouldReport4xxErrors() throws Exception {
+    public void shouldReport4xxErrors() throws Exception {
         HttpContext context = server.createContext("/test3", (exchange) -> {
             exchange.sendResponseHeaders(400, 0);
             IOUtil.copy("This is the error details", exchange.getResponseBody());
         });
 
-    	RestHttpException e = (RestHttpException) catchThrowable(() -> restClient.getString(context.getPath()));
-		assertThat(e)
-        	.isInstanceOf(RestHttpException.class)
-        	.hasMessageContaining("400 Bad Request");
-		assertThat(e.getDetailText()).isEqualTo("This is the error details");
-		assertThat(e.getResponseCode()).isEqualTo(400);
-		assertThat(e.getUrl()).isEqualTo(restClient.getUrl() + context.getPath());
-		assertThat(e.getEndpointName()).isEqualTo("TestEndpoint");
-	}
+        RestHttpException e = (RestHttpException) catchThrowable(() -> restClient.getString(context.getPath()));
+        assertThat(e)
+            .isInstanceOf(RestHttpException.class)
+            .hasMessageContaining("400 Bad Request");
+        assertThat(e.getDetailText()).isEqualTo("This is the error details");
+        assertThat(e.getResponseCode()).isEqualTo(400);
+        assertThat(e.getUrl()).isEqualTo(restClient.getUrl() + context.getPath());
+        assertThat(e.getEndpointName()).isEqualTo("TestEndpoint");
+    }
 
     @Test
     public void shouldReport5xxErrors() throws Exception {
-    	HttpContext context = server.createContext("/test4", (exchange) -> {
-    		exchange.sendResponseHeaders(500, 0);
-    		exchange.getResponseBody().close();
-    	});
+        HttpContext context = server.createContext("/test4", (exchange) -> {
+            exchange.sendResponseHeaders(500, 0);
+            exchange.getResponseBody().close();
+        });
 
-    	assertThatThrownBy(() -> restClient.getString(context.getPath()))
-	    	.isInstanceOf(RestHttpException.class)
-	    	.hasMessageContaining("500 Internal Server Error");
+        assertThatThrownBy(() -> restClient.getString(context.getPath()))
+            .isInstanceOf(RestHttpException.class)
+            .hasMessageContaining("500 Internal Server Error");
     }
 
     @Test
     public void shouldFollow3xxRedirects() throws Exception {
-    	HttpContext context = server.createContext("/test7", (exchange) -> {
+        HttpContext context = server.createContext("/test7", (exchange) -> {
             exchange.sendResponseHeaders(200, 0);
             IOUtil.copy("This is a test", exchange.getResponseBody());
-    	});
-    	HttpContext redirectContext = server.createContext("/test6", (exchange) -> {
-    		exchange.getResponseHeaders().set("Location", restClient.getUrl() + context.getPath());
-    		exchange.sendResponseHeaders(301, 0);
-    		exchange.getResponseBody().close();
-    	});
+        });
+        HttpContext redirectContext = server.createContext("/test6", (exchange) -> {
+            exchange.getResponseHeaders().set("Location", restClient.getUrl() + context.getPath());
+            exchange.sendResponseHeaders(301, 0);
+            exchange.getResponseBody().close();
+        });
 
         assertThat(restClient.getString(redirectContext.getPath())).isEqualTo("This is a test");
     }
 
     @Test
     public void shouldHandleServerDown() throws Exception {
-    	restClient = new RestClient("invalid", "http://localhost:222", metrics);
-    	RestException e = (RestException)
-    			catchThrowable(() -> restClient.getString("/doesntMatter"));
-    	assertThat(e).hasMessage("java.net.ConnectException: Connection refused: connect");
-    	assertThat(e.getUrl()).isEqualTo("http://localhost:222/doesntMatter");
-    	assertThat(getErrorRate(restClient)).isEqualTo(1.0);
+        restClient = new RestClient("invalid", "http://localhost:222", metrics);
+        RestException e = (RestException)
+                catchThrowable(() -> restClient.getString("/doesntMatter"));
+        assertThat(e).hasMessage("java.net.ConnectException: Connection refused: connect");
+        assertThat(e.getUrl()).isEqualTo("http://localhost:222/doesntMatter");
+        assertThat(getErrorRate(restClient)).isEqualTo(1.0);
     }
 
     @Test
     public void shouldHandleServerClosing() throws Exception {
-    	HttpContext context = server.createContext("/test8", (exchange) -> {
-    		exchange.getResponseBody().close();
-    	});
+        HttpContext context = server.createContext("/test8", (exchange) -> {
+            exchange.getResponseBody().close();
+        });
 
-    	assertThatThrownBy(() -> restClient.getString(context.getPath()))
-    		.isInstanceOf(RestException.class)
-    		.hasMessage("java.net.SocketException: Unexpected end of file from server");
-    	assertThat(getErrorRate(restClient)).isEqualTo(1.0);
+        assertThatThrownBy(() -> restClient.getString(context.getPath()))
+            .isInstanceOf(RestException.class)
+            .hasMessage("java.net.SocketException: Unexpected end of file from server");
+        assertThat(getErrorRate(restClient)).isEqualTo(1.0);
     }
 
-	public double getErrorRate(RestClient restClient) {
-		return (double)restClient.getErrorCounter().getCount() /
-				(double)restClient.getRequestTiming().getCount();
-	}
+    public double getErrorRate(RestClient restClient) {
+        return (double)restClient.getErrorCounter().getCount() /
+                (double)restClient.getRequestTiming().getCount();
+    }
 
 
     private String header;
 
     @Test
-	public void shouldHandleBasicAuth() throws Exception {
-    	HttpContext context = server.createContext("/test9", (exchange) -> {
-    		header = exchange.getRequestHeaders().getFirst("Authorization");
+    public void shouldHandleBasicAuth() throws Exception {
+        HttpContext context = server.createContext("/test9", (exchange) -> {
+            header = exchange.getRequestHeaders().getFirst("Authorization");
             exchange.sendResponseHeaders(204, -1);
-    	});
+        });
 
-    	restClient.setBasicAuth("SomeUsername", "SomePassword");
-    	restClient.get(context.getPath(), IOUtil::toString);
+        restClient.setBasicAuth("SomeUsername", "SomePassword");
+        restClient.get(context.getPath(), IOUtil::toString);
 
-    	assertThat(header).isEqualTo("Basic U29tZVVzZXJuYW1lOlNvbWVQYXNzd29yZA==");
-	}
+        assertThat(header).isEqualTo("Basic U29tZVVzZXJuYW1lOlNvbWVQYXNzd29yZA==");
+    }
 
     private String payload;
     @Test
-	public void shouldPost() throws Exception {
-    	HttpContext context = server.createContext("/shouldPost", (exchange) -> {
+    public void shouldPost() throws Exception {
+        HttpContext context = server.createContext("/shouldPost", (exchange) -> {
             exchange.sendResponseHeaders(201, 0);
             payload = IOUtil.toString(exchange.getRequestBody());
             IOUtil.copy("This is the content", exchange.getResponseBody());
-    	});
+        });
 
-    	assertThat(restClient.postString(context.getPath(), "This is the posted content").get())
-    		.isEqualTo("This is the content");
-    	assertThat(payload)
-    		.isEqualTo("This is the posted content");
-	}
+        assertThat(restClient.postString(context.getPath(), "This is the posted content").get())
+            .isEqualTo("This is the content");
+        assertThat(payload)
+            .isEqualTo("This is the posted content");
+    }
 
 }
