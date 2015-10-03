@@ -16,22 +16,22 @@ can easily be dropped. And may be in the future
 
 ### Get a string from an url
 
-  RestClient restClient = new RestClient("TestEndpoint", "http://hostname/path", metrics);
-  String response = restClient.getString(context.getPath());
+    RestClient restClient = new RestClient("TestEndpoint", "http://hostname/path", metrics);
+    String response = restClient.getString(context.getPath());
   
 ### Get a JSON response from an url
 
-  RestClient restClient = new RestClient("TestEndpoint", "http://hostname/path", metrics);
-	restClient.setHeader("Accept", "application/json");
-  JsonObject response = restClient.get(context.getPath(), JsonParser::parseObject);
+    RestClient restClient = new RestClient("TestEndpoint", "http://hostname/path", metrics);
+    restClient.setHeader("Accept", "application/json");
+    JsonObject response = restClient.get(context.getPath(), JsonParser::parseObject);
 
 ### Authenticate with BASIC authentication
 
-  RestClient restClient = new RestClient("TestEndpoint", "http://hostname/path", metrics);
-	restClient.setBasicAuth("SomeUsername", "SomePassword");
-	String response = restClient.get(context.getPath(), IOUtil::toString);
+    RestClient restClient = new RestClient("TestEndpoint", "http://hostname/path", metrics);
+    restClient.setBasicAuth("SomeUsername", "SomePassword");
+    String response = restClient.get(context.getPath(), IOUtil::toString);
 
 ### Post request
 
-  RestClient restClient = new RestClient("TestEndpoint", "http://hostname/path", metrics);
-  restClient.postString(context.getPath(), "This is the posted content");
+     RestClient restClient = new RestClient("TestEndpoint", "http://hostname/path", metrics);
+     restClient.postString(context.getPath(), "This is the posted content");
